@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Management App</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f5f5f5;
+            margin: 0;
+        }
+
+        header {
+            margin-bottom: 20px;
+            color: #8E44AD; /* Wine Color */
+        }
+
+        .board-container {
+            display: flex;
+            gap: 20px;
+            width: 800px;
+        }
+
+        .board {
+            border-radius: 5px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            flex: 1;
+        }
+
+        #todo-board {
+            background-color: #AE1438; /* Wine Color */
+        }
+
+        #in-progress-board {
+            background-color: #FFC0CB; /* Pink Color */
+        }
+
+        #done-board {
+            background-color: #006400; /* Dark Green Color */
+        }
+
+        .board h2 {
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            color: #fff; /* White text color for better visibility */
+        }
+
+        .task-list {
+            list-style: none;
+            padding: 0;
+            min-height: 100px;
+        }
+
+        .task-list li {
+            background-color: #FAD02E; /* Light Yellow Color */
+            border-radius: 5px;
+            margin-bottom: 5px;
+            padding: 10px;
+            cursor: move;
+            display: flex;
+            align-items: center;
+        }
+
+        .task-list li:hover {
+            background-color: #F8C471; /* Light Orange Color */
+        }
+
+        .task-list li input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        .delete-button {
+            background-color: black;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: auto;
+        }
+
+        #add-task-form {
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        #task-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+
+        button {
+            background-color: #3498DB; /* Blue Color */
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Task Management</h1>
+    </header>
+    <main>
+        <section class="board-container">
+            <div class="board" id="todo-board" ondrop="handleDrop(event, 'todo-list')" ondragover="handleDragOver(event)">
+                <h2>To Do</h2>
+                <ul class="task-list" id="todo-list" ondrop="handleDrop(event, 'todo-list')" ondragover="handleDragOver(event)"></ul>
+            </div>
+            <div class="board" id="in-progress-board" ondrop="handleDrop(event, 'in-progress-list')" ondragover="handleDragOver(event)">
+                <h2>In Progress</h2>
+                <ul class="task-list" id="in-progress-list" ondrop="handleDrop(event, 'in-progress-list')" ondragover="handleDragOver(event)"></ul>
+            </div>
+            <div class="board" id="done-board" ondrop="handleDrop(event, 'done-list')" ondragover="handleDragOver(event)">
+                <h2>Done</h2>
+                <ul class="task-list" id="done-list" ondrop="handleDrop(event, 'done-list')" ondragover="handleDragOver(event)"></ul>
+            </div>
+        </section>
+        <form id="add-task-form" onsubmit="event.preventDefault(); addTask();">
+            <input type="text" id="task-input" placeholder="Add a new task">
+            <button type="submit">Add</button>
+        </form>
+    </main>
+    <script>
+        const lists = {
+            'todo-list': document.getElementById('todo-list'),
+            'in-progress-list': document.getElementById('in-progress-list'),
+            'done-list': document.getElementById('done-list'),
+        };
+
+        let taskCounter = 1; // Counter for task sequence
+
+        // Load tasks from local storage
+        const storedTasks = JSON.parse(localStorage.getItem('tasks')) || {};
+        Object.keys(storedTasks).forEach(listId => {
+            storedTasks[listId].forEach(task => {
+                addTask(lists[listId], task);
+            });
+        });
+
+        // Add a new task
+        function addTask() {
+            const taskText = document.getElementById('task-input').value.trim();
+            if (taskText) {
+                addTaskToList(lists['todo-list'], taskText);
+                document.getElementById('task-input').value = '';
+                saveTasks();
+            }
+        }
+
+        // Add a task to a list
+        function addTaskToList(list, taskText) {
+            const task = document.createElement('li');
+            task.innerHTML = `
+                <input type="radio" name="tasks" />
+                <span>${taskCounter}. ${taskText}</span>
+                <button class="delete-button" onclick="deleteTask(this.parentNode)">Delete</button>
+            `;
+            task.draggable = true;
+            taskCounter++;
+            task.addEventListener('dragstart', (event) => {
+                event.dataTransfer.setData('text/plain', task.innerHTML);
+            });
+            list.appendChild(task);
+        }
+
+        // Handle task dragging
+        function handleDragOver(event) {
+            event.preventDefault();
+        }
+
+        function handleDrop(event, targetListId) {
+            event.preventDefault();
+            const draggedHTML = event.dataTransfer.getData('text/plain');
+            const task = document.createElement('li');
+            task.innerHTML = draggedHTML;
+
+            const targetList = lists[targetListId];
+            if (targetList && task && task.parentNode !== targetList) {
+                const parentList = task.parentNode;
+                if (parentList) {
+                    parentList.removeChild(task);
+                }
+                targetList.appendChild(task);
+                updateTaskStatus(task, targetListId);
+                saveTasks();
+            }
+        }
+
+        // Update task status when dropped
+        function updateTaskStatus(task, targetListId) {
+            const sourceListId = getSourceListId(task);
+            removeTaskFromList(sourceListId, task);
+            moveTaskToList(targetListId, task);
+        }
+
+        // Get source list ID from a task
+        function getSourceListId(task) {
+            return task.parentNode.id === 'todo-list' ? 'todo' : task.parentNode.id === 'in-progress-list' ? 'in-progress' : 'done';
+        }
+
+        // Remove task from its current list
+        function removeTaskFromList(listId, task) {
+            const list = lists[listId];
+            if (list && task && task.parentNode === list) {
+                list.removeChild(task);
+            }
+        }
+
+        // Move task to another list
+        function moveTaskToList(targetListId, task) {
+            const targetList = lists[targetListId];
+            if (!targetList) {
+                console.error(`Invalid target list ID: ${targetListId}`);
+                return;
+            }
+            targetList.appendChild(task);
+        }
+
+        // Save tasks to local storage
+        function saveTasks() {
+            const tasks = {};
+            Object.keys(lists).forEach(listId => {
+                tasks[listId] = Array.from(lists[listId].children).map(task => task.innerHTML);
+            });
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
+
+        // Delete task
+        function deleteTask(task) {
+            const parentList = task.parentNode;
+            if (parentList) {
+                parentList.removeChild(task);
+                saveTasks();
+            }
+        }
+
+        // Set up draggable behavior
+        ['todo-list', 'in-progress-list', 'done-list'].forEach(listId => {
+            const list = lists[listId];
+            if (list) {
+                list.addEventListener('dragover', handleDragOver);
+                list.addEventListener('drop', (event) => handleDrop(event, listId));
+            }
+        });
+    </script>
+</body>
+
+</html>
+
